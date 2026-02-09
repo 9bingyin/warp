@@ -3,13 +3,25 @@ import { parseArgs } from "node:util";
 import { generateEcKeyPair, generateWgKeyPair } from "./crypto";
 import { register, registerWg, enrollKey } from "./api";
 import type { MasqueConfig, WgConfig } from "./config";
-import { parseEndpoint, serializeWgIni } from "./config";
-import { generateMasqueYaml, generateWireguardYaml } from "./generator";
+import { parseEndpoint } from "./config";
+import {
+  generateMasqueYaml,
+  generateWireguardYaml,
+  type GeneratorOptions,
+} from "./generator";
 
 function usage(): never {
   console.log(`Usage:
   bun run src/index.ts register masque [-o output.yaml] [--jwt token] [--name device-name]
-  bun run src/index.ts register wireguard [-o output.yaml] [--jwt token]`);
+  bun run src/index.ts register wireguard [-o output.yaml] [--jwt token]
+
+Options:
+  -o, --output     output file path (default: stdout)
+  --jwt            ZeroTrust JWT token
+  --name           device name (masque only)
+  --listen         listener bind address (default: 127.0.0.1)
+  --port           listener port (default: 1080)
+  --dns            comma-separated DNS servers (default: 1.1.1.1,1.0.0.1)`);
   process.exit(1);
 }
 
@@ -17,6 +29,7 @@ async function registerMasque(
   output?: string,
   jwt?: string,
   name?: string,
+  generatorOptions?: GeneratorOptions,
 ): Promise<void> {
   console.log("registering new MASQUE device...");
   if (jwt) {
@@ -80,7 +93,7 @@ async function registerMasque(
   };
 
   // Step 5: Generate mihomo YAML
-  const yamlOutput = generateMasqueYaml(masqueConfig);
+  const yamlOutput = generateMasqueYaml(masqueConfig, generatorOptions);
 
   if (output) {
     writeFileSync(output, yamlOutput);
@@ -95,6 +108,7 @@ async function registerMasque(
 async function registerWireguard(
   output?: string,
   jwt?: string,
+  generatorOptions?: GeneratorOptions,
 ): Promise<void> {
   console.log("registering new WireGuard device...");
   if (jwt) {
@@ -178,7 +192,7 @@ async function registerWireguard(
   };
 
   // Step 6: Generate mihomo YAML
-  const yamlOutput = generateWireguardYaml(wgConfig);
+  const yamlOutput = generateWireguardYaml(wgConfig, generatorOptions);
 
   if (output) {
     writeFileSync(output, yamlOutput);
@@ -208,6 +222,9 @@ async function main(): Promise<void> {
       output: { type: "string", short: "o" },
       jwt: { type: "string" },
       name: { type: "string" },
+      listen: { type: "string" },
+      port: { type: "string" },
+      dns: { type: "string" },
     },
     strict: false,
   });
@@ -216,10 +233,24 @@ async function main(): Promise<void> {
   const jwt = values.jwt as string | undefined;
   const name = values.name as string | undefined;
 
+  const generatorOptions: GeneratorOptions = {};
+  if (values.listen) {
+    generatorOptions.listen = values.listen as string;
+  }
+  if (values.port) {
+    generatorOptions.port = parseInt(values.port as string, 10);
+  }
+  if (values.dns) {
+    generatorOptions.dns = (values.dns as string)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   if (mode === "masque") {
-    await registerMasque(output, jwt, name);
+    await registerMasque(output, jwt, name, generatorOptions);
   } else {
-    await registerWireguard(output, jwt);
+    await registerWireguard(output, jwt, generatorOptions);
   }
 }
 

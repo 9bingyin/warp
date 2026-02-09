@@ -9,7 +9,15 @@ const DUMP_OPTIONS: yaml.DumpOptions = {
   schema: yaml.CORE_SCHEMA,
 };
 
-function buildBase(proxyName: string) {
+const DEFAULT_DNS = ["1.1.1.1", "1.0.0.1"];
+
+export interface GeneratorOptions {
+  listen?: string;
+  port?: number;
+  dns?: string[];
+}
+
+function buildBase(proxyName: string, listen = "127.0.0.1", port = 1080) {
   return {
     "log-level": "info",
     ipv6: true,
@@ -19,8 +27,8 @@ function buildBase(proxyName: string) {
       {
         name: "socks-in-default",
         type: "socks",
-        port: 1081,
-        listen: "127.0.0.1",
+        port,
+        listen,
         udp: true,
         proxy: proxyName,
       },
@@ -34,13 +42,17 @@ function fixYamlQuoting(output: string): string {
   return output.replace(/find-process-mode: "off"/, "find-process-mode: off");
 }
 
-export function generateMasqueYaml(config: MasqueConfig): string {
+export function generateMasqueYaml(
+  config: MasqueConfig,
+  options?: GeneratorOptions,
+): string {
   const proxyName = "masque";
   const { ip: server } = parseEndpoint(config.endpoint_v4);
   const publicKeyBase64 = extractPemBase64(config.endpoint_pub_key);
+  const dns = options?.dns ?? DEFAULT_DNS;
 
   const mihomoConfig = {
-    ...buildBase(proxyName),
+    ...buildBase(proxyName, options?.listen, options?.port),
     proxies: [
       {
         name: proxyName,
@@ -53,7 +65,7 @@ export function generateMasqueYaml(config: MasqueConfig): string {
         ipv6: config.ipv6,
         udp: true,
         "remote-dns-resolve": true,
-        dns: ["1.1.1.1", "1.0.0.1"],
+        dns,
       },
     ],
   };
@@ -61,12 +73,16 @@ export function generateMasqueYaml(config: MasqueConfig): string {
   return fixYamlQuoting(yaml.dump(mihomoConfig, DUMP_OPTIONS));
 }
 
-export function generateWireguardYaml(config: WgConfig): string {
+export function generateWireguardYaml(
+  config: WgConfig,
+  options?: GeneratorOptions,
+): string {
   const proxyName = "wireguard";
   const { ip: server, port: rawPort } = parseEndpoint(config.endpoint);
   const port = rawPort === 0 ? 2408 : rawPort;
   const ip = stripCidr(config.address);
   const ipv6 = config.address6 ? stripCidr(config.address6) : undefined;
+  const dns = options?.dns ?? DEFAULT_DNS;
 
   let reserved: number[] | undefined;
   if (config.clientId) {
@@ -94,10 +110,10 @@ export function generateWireguardYaml(config: WgConfig): string {
   proxy.udp = true;
   proxy.mtu = config.mtu;
   proxy["remote-dns-resolve"] = true;
-  proxy.dns = [config.dns, "1.0.0.1"];
+  proxy.dns = dns;
 
   const mihomoConfig = {
-    ...buildBase(proxyName),
+    ...buildBase(proxyName, options?.listen, options?.port),
     proxies: [proxy],
   };
 
