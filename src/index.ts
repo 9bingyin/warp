@@ -1,5 +1,4 @@
 import { writeFileSync } from "node:fs";
-import { parseArgs } from "node:util";
 import { generateEcKeyPair, generateWgKeyPair } from "./crypto";
 import { register, registerWg, enrollKey } from "./api";
 import type { MasqueConfig, WgConfig } from "./config";
@@ -216,35 +215,44 @@ async function main(): Promise<void> {
     usage();
   }
 
-  const { values } = parseArgs({
-    args: args.slice(2),
-    options: {
-      output: { type: "string", short: "o" },
-      jwt: { type: "string" },
-      name: { type: "string" },
-      listen: { type: "string" },
-      port: { type: "string" },
-      dns: { type: "string" },
-    },
-    strict: false,
-  });
-
-  const output = values.output as string | undefined;
-  const jwt = values.jwt as string | undefined;
-  const name = values.name as string | undefined;
-
+  const optArgs = args.slice(2);
+  let output: string | undefined;
+  let jwt: string | undefined;
+  let name: string | undefined;
   const generatorOptions: GeneratorOptions = {};
-  if (values.listen) {
-    generatorOptions.listen = values.listen as string;
-  }
-  if (values.port) {
-    generatorOptions.port = parseInt(values.port as string, 10);
-  }
-  if (values.dns) {
-    generatorOptions.dns = (values.dns as string)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+
+  for (let i = 0; i < optArgs.length; i++) {
+    const arg = optArgs[i]!;
+    const next = optArgs[i + 1];
+    switch (arg) {
+      case "-o":
+      case "--output":
+        output = next;
+        i++;
+        break;
+      case "--jwt":
+        jwt = next;
+        i++;
+        break;
+      case "--name":
+        name = next;
+        i++;
+        break;
+      case "--listen":
+        generatorOptions.listen = next;
+        i++;
+        break;
+      case "--port":
+        generatorOptions.port = next ? parseInt(next, 10) : undefined;
+        i++;
+        break;
+      case "--dns":
+        generatorOptions.dns = next
+          ? next.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined;
+        i++;
+        break;
+    }
   }
 
   if (mode === "masque") {

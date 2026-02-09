@@ -14,7 +14,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo "mode=$WARP_MODE listen=$SOCKS_BIND:$SOCKS_PORT dns=$WARP_DNS"
 
     mkdir -p "$CONFIG_DIR"
-    set -- bun /app/index.js register "$WARP_MODE" -o "$CONFIG_FILE" \
+    set -- llrt /app/index.js register "$WARP_MODE" -o "$CONFIG_FILE" \
         --listen "$SOCKS_BIND" --port "$SOCKS_PORT" --dns "$WARP_DNS"
 
     if [ -n "$WARP_JWT" ]; then

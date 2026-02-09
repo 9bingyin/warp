@@ -1,5 +1,6 @@
-import { generateKeyPairSync, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { x25519 } from "@noble/curves/ed25519.js";
+import { p256 } from "@noble/curves/nist.js";
 
 export interface EcKeyPair {
   privateKeyDer: Buffer;
@@ -14,13 +15,42 @@ export interface WgKeyPair {
   privateKeyBase64: string;
 }
 
-export function generateEcKeyPair(): EcKeyPair {
-  const { privateKey, publicKey } = generateKeyPairSync("ec", {
-    namedCurve: "prime256v1",
-  });
+// SEC1 DER fixed headers for P-256
+// SEQUENCE(119) > INTEGER(1) > OCTET_STRING(32) > [0] OID(prime256v1) > [1] BIT_STRING(uncompressed pubkey)
+const SEC1_PREFIX = new Uint8Array([0x30, 0x77, 0x02, 0x01, 0x01, 0x04, 0x20]);
+const SEC1_OID = new Uint8Array([
+  0xa0, 0x0a, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
+]);
+const SEC1_PUB_PREFIX = new Uint8Array([0xa1, 0x44, 0x03, 0x42, 0x00]);
 
-  const privateKeyDer = privateKey.export({ type: "sec1", format: "der" });
-  const publicKeyDer = publicKey.export({ type: "spki", format: "der" });
+// SPKI DER fixed header for P-256
+// SEQUENCE(89) > SEQUENCE(19) > OID(ecPublicKey) > OID(prime256v1) > BIT_STRING(uncompressed pubkey)
+const SPKI_PREFIX = new Uint8Array([
+  0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+  0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+  0x42, 0x00,
+]);
+
+function concatBytes(...arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
+
+export function generateEcKeyPair(): EcKeyPair {
+  const privateKey = p256.utils.randomSecretKey();
+  const publicKey = p256.getPublicKey(privateKey, false);
+
+  const sec1Der = concatBytes(SEC1_PREFIX, privateKey, SEC1_OID, SEC1_PUB_PREFIX, publicKey);
+  const spkiDer = concatBytes(SPKI_PREFIX, publicKey);
+
+  const privateKeyDer = Buffer.from(sec1Der);
+  const publicKeyDer = Buffer.from(spkiDer);
 
   return {
     privateKeyDer,
