@@ -1,6 +1,4 @@
-FROM --platform=$BUILDPLATFORM oven/bun:alpine AS builder
-
-ARG TARGETARCH
+FROM oven/bun:alpine AS builder
 
 WORKDIR /app
 
@@ -10,10 +8,7 @@ RUN bun install --frozen-lockfile
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-RUN if [ "$TARGETARCH" = "amd64" ]; then BUN_TARGET="bun-linux-x64"; \
-    elif [ "$TARGETARCH" = "arm64" ]; then BUN_TARGET="bun-linux-arm64"; \
-    else BUN_TARGET="bun-linux-x64"; fi && \
-    bun build src/index.ts --compile --target="$BUN_TARGET" --outfile warp
+RUN bun build src/index.ts --outfile dist/index.js --target=bun
 
 # ---
 
@@ -34,12 +29,12 @@ RUN DOWNLOAD_URL="https://github.com/MetaCubeX/mihomo/releases/download/${MIHOMO
 
 # ---
 
-FROM alpine:latest
+FROM oven/bun:alpine
 
 RUN apk --no-cache add ca-certificates curl
 
-COPY --from=builder /app/warp /usr/local/bin/warp
 COPY --from=mihomo-downloader /tmp/mihomo /usr/local/bin/mihomo
+COPY --from=builder /app/dist/index.js /app/index.js
 
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY docker/healthcheck.sh /healthcheck.sh
