@@ -11,11 +11,17 @@ fi
 
 SOCKS_PROXY="${TEST_HOST}:${PORT}"
 
+AUTH_ARGS=""
+if [ -n "$SOCKS_USER" ] && [ -n "$SOCKS_PASS" ]; then
+    AUTH_ARGS="--proxy-user ${SOCKS_USER}:${SOCKS_PASS}"
+fi
+
 check_url() {
     curl --silent --fail \
         --connect-timeout 5 \
         --max-time 10 \
-        --socks5 "$SOCKS_PROXY" \
+        --socks5-hostname "$SOCKS_PROXY" \
+        $AUTH_ARGS \
         "$1" \
         -o /dev/null \
         -w "%{http_code}" 2>/dev/null

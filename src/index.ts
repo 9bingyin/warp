@@ -20,7 +20,9 @@ Options:
   --name           device name (masque only)
   --listen         listener bind address (default: 127.0.0.1)
   --port           listener port (default: 1080)
-  --dns            comma-separated DNS servers (default: 1.1.1.1,1.0.0.1)`);
+  --dns            comma-separated DNS servers (default: 1.1.1.1,1.0.0.1)
+  --username       SOCKS5 authentication username
+  --password       SOCKS5 authentication password`);
   process.exit(1);
 }
 
@@ -250,6 +252,14 @@ async function main(): Promise<void> {
         generatorOptions.dns = next
           ? next.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined;
+        i++;
+        break;
+      case "--username":
+        generatorOptions.username = next;
+        i++;
+        break;
+      case "--password":
+        generatorOptions.password = next;
         i++;
         break;
     }

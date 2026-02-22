@@ -25,6 +25,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
         set -- "$@" --name "$WARP_NAME"
     fi
 
+    if [ -n "$SOCKS_USER" ] && [ -n "$SOCKS_PASS" ]; then
+        set -- "$@" --username "$SOCKS_USER" --password "$SOCKS_PASS"
+    fi
+
     "$@"
     echo "registration successful: $CONFIG_FILE"
 else

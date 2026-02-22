@@ -15,24 +15,36 @@ export interface GeneratorOptions {
   listen?: string;
   port?: number;
   dns?: string[];
+  username?: string;
+  password?: string;
 }
 
-function buildBase(proxyName: string, listen = "127.0.0.1", port = 1080) {
+function buildBase(
+  proxyName: string,
+  listen = "127.0.0.1",
+  port = 1080,
+  username?: string,
+  password?: string,
+) {
+  const listener: Record<string, unknown> = {
+    name: "socks-in-default",
+    type: "socks",
+    port,
+    listen,
+    udp: true,
+    proxy: proxyName,
+  };
+
+  if (username && password) {
+    listener.users = [{ username, password }];
+  }
+
   return {
     "log-level": "info",
     ipv6: true,
     "find-process-mode": "off",
     "tcp-concurrent": true,
-    listeners: [
-      {
-        name: "socks-in-default",
-        type: "socks",
-        port,
-        listen,
-        udp: true,
-        proxy: proxyName,
-      },
-    ],
+    listeners: [listener],
   };
 }
 
@@ -52,7 +64,7 @@ export function generateMasqueYaml(
   const dns = options?.dns ?? DEFAULT_DNS;
 
   const mihomoConfig = {
-    ...buildBase(proxyName, options?.listen, options?.port),
+    ...buildBase(proxyName, options?.listen, options?.port, options?.username, options?.password),
     proxies: [
       {
         name: proxyName,
@@ -113,7 +125,7 @@ export function generateWireguardYaml(
   proxy.dns = dns;
 
   const mihomoConfig = {
-    ...buildBase(proxyName, options?.listen, options?.port),
+    ...buildBase(proxyName, options?.listen, options?.port, options?.username, options?.password),
     proxies: [proxy],
   };
 
