@@ -51,8 +51,12 @@ jobs:
             exit 0
           fi
 
+          # GHCR v2 API 需要先通过 token 交换获取 registry token
+          TOKEN=$(curl -s -u "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+            "https://${{ env.REGISTRY }}/token?scope=repository:${IMAGE_NAME_LOWER}:pull" | jq -r '.token')
+
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${TOKEN}" \
             "https://${{ env.REGISTRY }}/v2/${IMAGE_NAME_LOWER}/manifests/${VERSION}" \
             -H "Accept: application/vnd.oci.image.index.v1+json")
 
