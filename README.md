@@ -53,6 +53,8 @@ services:
 | `WARP_DNS` | 自定义 DNS，逗号分隔 | `1.1.1.1,1.0.0.1` |
 | `SOCKS_BIND` | SOCKS5 监听地址 | `0.0.0.0` |
 | `SOCKS_PORT` | SOCKS5 监听端口 | `1080` |
+| `SOCKS_USER` | SOCKS5 认证用户名 | - |
+| `SOCKS_PASS` | SOCKS5 认证密码 | - |
 
 ## CLI
 
@@ -86,3 +88,5 @@ bun run src/index.ts register masque -o config.yaml \
 | `--listen` | 监听地址 | `127.0.0.1` |
 | `--port` | 监听端口 | `1080` |
 | `--dns` | 自定义 DNS，逗号分隔 | `1.1.1.1,1.0.0.1` |
+| `--username` | SOCKS5 认证用户名 | - |
+| `--password` | SOCKS5 认证密码 | - |
