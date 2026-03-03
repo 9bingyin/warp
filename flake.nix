@@ -33,7 +33,7 @@
           { pkgs, ... }:
           {
             imports = [ ./nix/module.nix ];
-            services.mihomo-warp.package = nixpkgs.lib.mkDefault self.packages.${pkgs.system}.default;
+            services.mihomo-warp.package = nixpkgs.lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
           };
       };
     };

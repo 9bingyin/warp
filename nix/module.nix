@@ -7,6 +7,58 @@
 
 let
   cfg = config.services.mihomo-warp;
+  stateDir = "/var/lib/mihomo-warp";
+  configFile = "${stateDir}/config.yaml";
+  needsPrivilegedPort = cfg.port < 1024;
+
+  registerArgs =
+    [
+      "register"
+      cfg.mode
+      "-o"
+      configFile
+      "--listen"
+      cfg.listen
+      "--port"
+      (toString cfg.port)
+      "--dns"
+      cfg.dns
+    ]
+    ++ lib.optionals (cfg.deviceName != null) [
+      "--name"
+      cfg.deviceName
+    ];
+
+  registerScript = pkgs.writeShellScript "mihomo-warp-register" ''
+    set -euo pipefail
+    args=(${lib.escapeShellArgs registerArgs})
+    if [ -n "''${WARP_JWT:-}" ]; then
+      args+=(--jwt "$WARP_JWT")
+    fi
+    if [ -n "''${SOCKS_USER:-}" ] && [ -n "''${SOCKS_PASS:-}" ]; then
+      args+=(--username "$SOCKS_USER" --password "$SOCKS_PASS")
+    fi
+    ${cfg.package}/bin/warp "''${args[@]}"
+  '';
+
+  commonHardening = {
+    LockPersonality = true;
+    NoNewPrivileges = true;
+    PrivateDevices = true;
+    PrivateTmp = true;
+    ProtectClock = true;
+    ProtectControlGroups = true;
+    ProtectHome = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+    ProtectSystem = "strict";
+    ReadWritePaths = [ stateDir ];
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+  };
 in
 {
   options.services.mihomo-warp = {
@@ -67,48 +119,55 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    systemd.services.mihomo-warp = {
-      description = "Cloudflare WARP Proxy";
+    users.users.mihomo-warp = {
+      isSystemUser = true;
+      group = "mihomo-warp";
+    };
+    users.groups.mihomo-warp = { };
+
+    systemd.services.mihomo-warp-register = {
+      description = "Cloudflare WARP Device Registration";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
+      requiredBy = [ "mihomo-warp.service" ];
+      before = [ "mihomo-warp.service" ];
+
+      unitConfig = {
+        ConditionPathExists = "!${configFile}";
+      };
+
+      serviceConfig = commonHardening // {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        User = "mihomo-warp";
+        Group = "mihomo-warp";
+        StateDirectory = "mihomo-warp";
+        ExecStart = registerScript;
+        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
+        CapabilityBoundingSet = "";
+      };
+    };
+
+    systemd.services.mihomo-warp = {
+      description = "Cloudflare WARP Proxy (mihomo)";
+      after = [
+        "network-online.target"
+        "mihomo-warp-register.service"
+      ];
+      wants = [ "network-online.target" ];
+      requires = [ "mihomo-warp-register.service" ];
       wantedBy = [ "multi-user.target" ];
 
-      serviceConfig = {
+      serviceConfig = commonHardening // {
         Type = "simple";
+        User = "mihomo-warp";
+        Group = "mihomo-warp";
         StateDirectory = "mihomo-warp";
-        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
-
-        ExecStartPre =
-          let
-            registerScript = pkgs.writeShellScript "mihomo-warp-register" ''
-              CONFIG_FILE="/var/lib/mihomo-warp/config.yaml"
-              if [ ! -f "$CONFIG_FILE" ]; then
-                echo "config not found, starting registration..."
-                ARGS="register ${cfg.mode} -o $CONFIG_FILE"
-                ARGS="$ARGS --listen ${cfg.listen}"
-                ARGS="$ARGS --port ${toString cfg.port}"
-                ARGS="$ARGS --dns ${cfg.dns}"
-                ${lib.optionalString (cfg.deviceName != null) ''
-                  ARGS="$ARGS --name ${lib.escapeShellArg cfg.deviceName}"
-                ''}
-                if [ -n "''${WARP_JWT:-}" ]; then
-                  ARGS="$ARGS --jwt $WARP_JWT"
-                fi
-                if [ -n "''${SOCKS_USER:-}" ] && [ -n "''${SOCKS_PASS:-}" ]; then
-                  ARGS="$ARGS --username $SOCKS_USER --password $SOCKS_PASS"
-                fi
-                ${cfg.package}/bin/warp $ARGS
-                echo "registration successful: $CONFIG_FILE"
-              else
-                echo "config exists: $CONFIG_FILE"
-              fi
-            '';
-          in
-          "+${registerScript}";
-
-        ExecStart = "${cfg.mihomoPackage}/bin/mihomo -d /var/lib/mihomo-warp";
+        ExecStart = "${cfg.mihomoPackage}/bin/mihomo -d ${stateDir}";
         Restart = "on-failure";
         RestartSec = 5;
+        CapabilityBoundingSet = lib.optionals needsPrivilegedPort [ "CAP_NET_BIND_SERVICE" ];
+        AmbientCapabilities = lib.optionals needsPrivilegedPort [ "CAP_NET_BIND_SERVICE" ];
       };
     };
   };
