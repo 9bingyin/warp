@@ -19,21 +19,21 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          warp = pkgs.callPackage ./nix/package.nix { };
+          mihomoWarp = pkgs.callPackage ./nix/package.nix { };
         in
         {
-          default = warp;
-          inherit warp;
+          default = mihomoWarp;
+          "mihomo-warp" = mihomoWarp;
         }
       );
 
       nixosModules = {
-        default = self.nixosModules.warp;
-        warp =
+        default = self.nixosModules."mihomo-warp";
+        "mihomo-warp" =
           { pkgs, ... }:
           {
             imports = [ ./nix/module.nix ];
-            services.mihomo-warp.package = nixpkgs.lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+            services.mihomo-warp.package = nixpkgs.lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}."mihomo-warp";
           };
       };
     };

@@ -7,7 +7,7 @@
 }:
 
 buildNpmPackage rec {
-  pname = "warp";
+  pname = "mihomo-warp";
   version = "0-unstable-2026-02-27";
 
   src = ./..;
@@ -37,11 +37,11 @@ buildNpmPackage rec {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib/warp $out/bin
-    cp dist/index.js $out/lib/warp/
+    mkdir -p $out/lib/mihomo-warp $out/bin
+    cp dist/index.js $out/lib/mihomo-warp/
 
-    makeWrapper ${nodejs}/bin/node $out/bin/warp \
-      --add-flags "$out/lib/warp/index.js"
+    makeWrapper ${nodejs}/bin/node $out/bin/mihomo-warp \
+      --add-flags "$out/lib/mihomo-warp/index.js"
 
     runHook postInstall
   '';
@@ -50,6 +50,6 @@ buildNpmPackage rec {
     description = "Cloudflare WARP device registration tool for mihomo";
     homepage = "https://github.com/9bingyin/warp";
     license = lib.licenses.mit;
-    mainProgram = "warp";
+    mainProgram = "mihomo-warp";
   };
 }
