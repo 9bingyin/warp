@@ -60,8 +60,6 @@ services:
 | `LISTENER_USER` | listener 认证用户名 | - |
 | `LISTENER_PASS` | listener 认证密码 | - |
 
-兼容性说明：`SOCKS_BIND`、`SOCKS_PORT`、`SOCKS_USER`、`SOCKS_PASS` 仍可继续使用，未设置对应 `LISTENER_*` 时会自动回退到旧变量。
-
 ## CLI
 
 需要 [Bun](https://bun.sh) 运行时。
