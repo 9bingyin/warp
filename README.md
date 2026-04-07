@@ -2,6 +2,8 @@
 
 Cloudflare WARP 设备注册 + mihomo 配置生成器。支持 MASQUE 和 WireGuard 两种隧道模式。
 
+支持生成 `socks`、`http`、`mixed` 三种 mihomo listener，默认使用 `socks`。
+
 ## Docker
 
 容器启动时自动注册 WARP 设备并生成 mihomo 配置，随后启动 mihomo 代理。
@@ -41,6 +43,7 @@ services:
       - ./config:/root/.config/mihomo
     environment:
       - WARP_MODE=masque
+      - WARP_LISTENER=mixed
 ```
 
 ### 环境变量
@@ -48,13 +51,16 @@ services:
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `WARP_MODE` | 隧道模式：`masque` 或 `wireguard` | `masque` |
+| `WARP_LISTENER` | listener 类型：`socks`、`http` 或 `mixed` | `socks` |
 | `WARP_JWT` | Cloudflare Zero Trust JWT token | - |
 | `WARP_NAME` | 设备名称（仅 masque 模式） | - |
 | `WARP_DNS` | 自定义 DNS，逗号分隔 | `1.1.1.1,1.0.0.1` |
-| `SOCKS_BIND` | SOCKS5 监听地址 | `0.0.0.0` |
-| `SOCKS_PORT` | SOCKS5 监听端口 | `1080` |
-| `SOCKS_USER` | SOCKS5 认证用户名 | - |
-| `SOCKS_PASS` | SOCKS5 认证密码 | - |
+| `LISTENER_BIND` | listener 监听地址 | `0.0.0.0` |
+| `LISTENER_PORT` | listener 监听端口 | `1080` |
+| `LISTENER_USER` | listener 认证用户名 | - |
+| `LISTENER_PASS` | listener 认证密码 | - |
+
+兼容性说明：`SOCKS_BIND`、`SOCKS_PORT`、`SOCKS_USER`、`SOCKS_PASS` 仍可继续使用，未设置对应 `LISTENER_*` 时会自动回退到旧变量。
 
 ## CLI
 
@@ -75,7 +81,7 @@ bun run src/index.ts register wireguard -o config.yaml
 
 # 自定义参数
 bun run src/index.ts register masque -o config.yaml \
-  --listen 0.0.0.0 --port 7891 --dns 8.8.8.8,8.8.4.4
+  --listener mixed --listen 0.0.0.0 --port 7891 --dns 8.8.8.8,8.8.4.4
 ```
 
 ### CLI 参数
@@ -85,8 +91,9 @@ bun run src/index.ts register masque -o config.yaml \
 | `-o, --output` | 输出文件路径（不指定则输出到 stdout） | - |
 | `--jwt` | Cloudflare Zero Trust JWT token | - |
 | `--name` | 设备名称（仅 masque 模式） | - |
+| `--listener` | listener 类型：`socks`、`http` 或 `mixed` | `socks` |
 | `--listen` | 监听地址 | `127.0.0.1` |
 | `--port` | 监听端口 | `1080` |
 | `--dns` | 自定义 DNS，逗号分隔 | `1.1.1.1,1.0.0.1` |
-| `--username` | SOCKS5 认证用户名 | - |
-| `--password` | SOCKS5 认证密码 | - |
+| `--username` | listener 认证用户名 | - |
+| `--password` | listener 认证密码 | - |

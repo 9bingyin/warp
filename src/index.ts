@@ -18,12 +18,23 @@ Options:
   -o, --output     output file path (default: stdout)
   --jwt            ZeroTrust JWT token
   --name           device name (masque only)
+  --listener       listener type: socks, http, mixed (default: socks)
   --listen         listener bind address (default: 127.0.0.1)
   --port           listener port (default: 1080)
   --dns            comma-separated DNS servers (default: 1.1.1.1,1.0.0.1)
-  --username       SOCKS5 authentication username
-  --password       SOCKS5 authentication password`);
+  --username       listener authentication username
+  --password       listener authentication password`);
   process.exit(1);
+}
+
+function parseListenerType(value?: string): "socks" | "http" | "mixed" | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "socks" || value === "http" || value === "mixed") {
+    return value;
+  }
+  throw new Error(`invalid listener type: ${value}`);
 }
 
 async function registerMasque(
@@ -244,13 +255,17 @@ async function main(): Promise<void> {
         generatorOptions.listen = next;
         i++;
         break;
+      case "--listener":
+        generatorOptions.listenerType = parseListenerType(next);
+        i++;
+        break;
       case "--port":
         generatorOptions.port = next ? parseInt(next, 10) : undefined;
         i++;
         break;
       case "--dns":
         generatorOptions.dns = next
-          ? next.split(",").map((s) => s.trim()).filter(Boolean)
+          ? next.split(",").map((s: string) => s.trim()).filter(Boolean)
           : undefined;
         i++;
         break;
@@ -262,6 +277,8 @@ async function main(): Promise<void> {
         generatorOptions.password = next;
         i++;
         break;
+      default:
+        usage();
     }
   }
 
